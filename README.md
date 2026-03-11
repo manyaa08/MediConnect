@@ -1,132 +1,105 @@
 # MediConnect – Surplus Medicine Redistribution System
 
-MediConnect is a full-stack web application built to reduce medicine wastage by connecting people who have surplus medicines with NGOs that distribute medicines to those in need.
+MediConnect is a web platform designed to reduce medicine wastage by connecting people who have surplus medicines with NGOs that distribute medicines to those in need.
 
-Many usable medicines are thrown away simply because people do not know where to donate them. At the same time, many communities struggle to access essential medicines. MediConnect attempts to bridge this gap by providing a simple platform where donors can list medicines and NGOs can request them.
+Many usable medicines are discarded simply because individuals do not know where to donate them. At the same time, many communities struggle to access essential medicines. MediConnect aims to bridge this gap by providing a simple digital platform where donors can list surplus medicines and NGOs can request them.
 
 ---
 
-## What the system does
+## Features
 
-The platform allows two types of users: **Donors** and **NGOs**.
+The platform supports two types of users.
 
-### Donors can
+### Donors
+- Add surplus medicines
+- Manage medicine inventory
+- Track medicine requests
 
-* Add surplus medicines to the system
-* Manage their medicine inventory
-* Track which medicines have been requested
-
-### NGOs can
-
-* Browse available medicines
-* Request medicines they need
-* Track request status
-
-The goal is to make redistribution of medicines **organized, transparent, and efficient**.
+### NGOs
+- Browse available medicines
+- Request medicines
+- Track request status
 
 ---
 
 ## Tech Stack
 
-**Backend**
+Backend  
+- Node.js  
+- Express.js  
+- MySQL (mysql2 library)
 
-* Node.js
-* Express.js
-* MySQL (mysql2 library)
+Frontend  
+- HTML  
+- CSS  
+- JavaScript
 
-**Frontend**
-
-* HTML
-* CSS
-* JavaScript
-
-**Database**
-
-* Relational database design (normalized schema)
-
-
-## Project Structure
-
-```
-medi-connect
-│
-├── backend
-│   ├── controllers
-│   ├── routes
-│   ├── middleware
-│   ├── db.js
-│   └── server.js
-│
-├── frontend
-│   ├── donorDashboard
-│   ├── ngoDashboard
-│   ├── addMedicine
-│   └── requestMedicine
-│
-└── package.json
-```
-
-The backend follows a modular structure with **routes, controllers, middleware, and database configuration**.
-
-## Database Design
-
-The system uses a relational database to manage:
-
-* Users
-* Medicines
-* Medicine requests
-* Donor inventory
-
-The schema is normalized to reduce redundancy and ensure data consistency.
+Database  
+- Relational database design
 
 ---
 
-## Example Features Implemented
+## Project Structure
 
-* Role-based login system
-* Medicine inventory management
-* Request tracking between donors and NGOs
-* Donor and NGO dashboards
-* REST API backend using Node.js
+medi-connect  
+│  
+├── backend  
+│   ├── controllers  
+│   ├── routes  
+│   ├── middleware  
+│   ├── db.js  
+│   └── server.js  
+│  
+├── frontend  
+│  
+└── package.json  
+
+The backend follows a modular architecture using routes, controllers, middleware, and a database connection layer.
+
+---
+
+## Database
+
+The system uses a relational database to manage:
+
+- Users  
+- Medicines  
+- Medicine requests  
+- Donor inventory  
+
+The schema is designed to reduce redundancy and maintain data consistency.
 
 ---
 
 ## Running the Project
 
-1. Clone the repository
+Clone the repository
 
-```
 git clone https://github.com/manyaa08/MediConnect.git
-```
 
-2. Install dependencies
+Install dependencies
 
-```
 npm install
-```
 
-3. Configure database credentials in
+Configure database credentials in
 
-```
 backend/db.js
-```
 
-4. Run the server
+Run the server
 
-```
 node server.js
-```
 
 ---
 
 ## Current Status
 
-This project is currently **under development**, with the backend and database logic mostly implemented.
+This project is currently under development.  
+The backend APIs and database logic are implemented, while the frontend is still being developed.
 
 ---
 
 ## Author
 
-Manya Kedia
-B.E. Computer Science and Engineering
+Manya Kedia  
+B.E. Computer Science and Engineering  
 Thapar Institute of Engineering and Technology
