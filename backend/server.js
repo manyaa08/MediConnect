@@ -1,0 +1,33 @@
+const express = require("express");
+const cors = require("cors");
+const db = require("./db");
+
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req,res)=>{
+    res.send("Mediconnect Backend Running");
+});
+
+app.listen(3000, ()=>{
+    console.log("Server running on port 3000");
+});
+
+const userRoutes = require("./routes/userRoutes");
+app.use("/users", userRoutes);
+
+const medicineRoutes = require("./routes/medicineRoutes");
+app.use("/medicines", medicineRoutes);
+
+const requestRoutes = require("./routes/requestRoutes");
+app.use("/requests", requestRoutes);
+
+const dashboardRoutes = require("./routes/dashboardRoutes");
+app.use("/dashboard", dashboardRoutes);
+
+
+
+
