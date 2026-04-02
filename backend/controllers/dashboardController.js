@@ -3,6 +3,7 @@ const db = require("../db");
 exports.getDonorDashboard = (req, res) => {
   const donor_id = req.user.user_id;
 
+  // 🔹 Summary
   const summarySql = `
   SELECT
     COUNT(DISTINCT m.medicine_id) AS total_medicines_listed,
@@ -13,6 +14,7 @@ exports.getDonorDashboard = (req, res) => {
   WHERE m.donor_id = ?;
   `;
 
+  // 🔹 Recent transfers
   const recentTransfersSql = `
   SELECT
     t.transfer_id,
@@ -28,15 +30,35 @@ exports.getDonorDashboard = (req, res) => {
   LIMIT 10;
   `;
 
+  // 🔥 NEW: Inventory query (THIS WAS MISSING)
+  const inventorySql = `
+  SELECT
+    medicine_id,
+    medicine_name,
+    batch_number,
+    expiry_date,
+    quantity,
+    category
+  FROM Medicines
+  WHERE donor_id = ?
+  ORDER BY medicine_id DESC;
+  `;
+
   db.query(summarySql, [donor_id], (err, summaryResult) => {
-    if (err) return res.send(err);
+    if (err) return res.status(500).send(err.message);
 
     db.query(recentTransfersSql, [donor_id], (err, transfersResult) => {
-      if (err) return res.send(err);
+      if (err) return res.status(500).send(err.message);
 
-      res.json({
-        summary: summaryResult[0],
-        recent_transfers: transfersResult
+      // 🔥 Add inventory query
+      db.query(inventorySql, [donor_id], (err, inventoryResult) => {
+        if (err) return res.status(500).send(err.message);
+
+        res.json({
+          summary: summaryResult[0],
+          recent_transfers: transfersResult,
+          inventory: inventoryResult   // ✅ THIS IS WHAT FRONTEND NEEDS
+        });
       });
     });
   });

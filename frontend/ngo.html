@@ -1,55 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>NGO Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NGO Dashboard | MediConnect</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="./css/style.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
-<body class="bg-light">
+<body>
+<div class="bg-blobs"></div>
 <div id="navbar"></div>
 
-<div class="container mt-5">
+<div class="container py-5" style="margin-top: 2rem;">
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <h2 class="mb-1 fw-bold text-gradient">NGO Dashboard</h2>
+            <p class="text-muted small mb-0">Track your community requests and real-time donations.</p>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="requestMedicine.html" class="btn btn-primary shadow-sm w-100 w-md-auto"><i class="fas fa-bullhorn me-2"></i>New Request</a>
+        </div>
+    </div>
 
-<h2>NGO Dashboard</h2>
-<div class="d-flex justify-content-between align-items-center mt-4">
-<h4>Your Requests</h4>
-<a href="requestMedicine.html" class="btn btn-success">+ Request Medicine</a>
+    <!-- Summary Stat Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon emerald"><i class="fas fa-clipboard-list"></i></div>
+                <div>
+                    <h3 class="stat-value" id="statActive">0</h3>
+                    <p class="stat-label">Active Quotas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-check-circle"></i></div>
+                <div>
+                    <h3 class="stat-value" id="statReceived">0</h3>
+                    <p class="stat-label">Shipments Received</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon purple"><i class="fas fa-boxes"></i></div>
+                <div>
+                    <h3 class="stat-value" id="statTotalItems">0</h3>
+                    <p class="stat-label">Items Procured</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Quotas Table -->
+    <div class="mb-5">
+        <h5 class="mb-3 fw-bold text-dark d-flex align-items-center">
+            <i class="fas fa-spinner fa-spin-pulse text-primary me-2"></i> Active Quotas
+        </h5>
+        <div class="card border-0 p-1">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="px-4">Medicine</th>
+                            <th class="text-center">Required</th>
+                            <th class="text-center">Remaining</th>
+                            <th class="px-4 text-end">Fulfillment Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestTable">
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Received Donations Table -->
+    <div>
+        <h5 class="mb-3 fw-bold text-dark d-flex align-items-center">
+            <i class="fas fa-box-check text-success me-2"></i> Received Shipments
+        </h5>
+        <div class="card border-0 p-1">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="px-4">Medicine Name</th>
+                            <th class="text-center">Generous Donor</th>
+                            <th class="text-center">Quantity</th>
+                            <th class="text-center">Transfer Date</th>
+                            <th class="px-4 text-end">Expiry</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receivedTable">
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
-
-
-<table class="table table-bordered">
-<thead class="table-dark">
-<tr>
-<th>Medicine</th>
-<th>Quantity</th>
-<th>Remaining qty</th>
-<th>Expiry Date</th>
-</tr>
-
-</thead>
-<tbody id="requestTable"></tbody>
-</table>
-
-<h4 class="mt-4">Received Medicines</h4>
-
-<table class="table table-bordered">
-<thead class="table-dark">
-<tr>
-<th>Medicine</th>
-<th>Quantity</th>
-<th>Date</th>
-</tr>
-</thead>
-<tbody id="receivedTable"></tbody>
-</table>
-
-</div>
-
 
 <script src="js/ngoDashboard.js"></script>
 <script src="./js/navbar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
