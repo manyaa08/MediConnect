@@ -134,7 +134,7 @@ router.post("/fulfill", verifyToken, allowRoles("Donor"), (req,res)=>{
                     if(err) return res.status(500).send(err.message);
 
                     db.query(
-                      "DELETE FROM Medicines WHERE medicine_id=? AND quantity<=0",
+                      "UPDATE Medicines SET status='Unavailable' WHERE medicine_id=? AND quantity<=0",
                       [batch.medicine_id],
                       (err)=>{
                         if(err) return res.status(500).send(err.message);

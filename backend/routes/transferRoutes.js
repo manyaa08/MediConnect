@@ -98,8 +98,8 @@ router.post("/create", verifyToken, allowRoles("Donor"), (req, res) => {
                         connection.query(logTransferSql, [t.medicine_id, request.ngo_id, t.deduct, t.expiry_date], (err) => {
                             if (err) return connection.rollback(() => { connection.release(); res.status(500).json({ message: "Failed to log transfer", error: err.message }) });
 
-                            const updateMedSql = "UPDATE Medicines SET quantity = quantity - ?, status = IF(quantity - ? <= 0, 'Unavailable', 'Available') WHERE medicine_id = ?";
-                            connection.query(updateMedSql, [t.deduct, t.deduct, t.medicine_id], (err) => {
+                            const updateMedSql = "UPDATE Medicines SET quantity = quantity - ?, status = IF(quantity <= 0, 'Unavailable', 'Available') WHERE medicine_id = ?";
+                            connection.query(updateMedSql, [t.deduct, t.medicine_id], (err) => {
                                 if (err) return connection.rollback(() => { connection.release(); res.status(500).json({ message: "Failed to update inventory", error: err.message }) });
                                 processTransfers(index + 1);
                             });
