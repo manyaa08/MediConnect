@@ -33,15 +33,16 @@ exports.getDonorDashboard = (req, res) => {
   // 🔥 NEW: Inventory query (THIS WAS MISSING)
   const inventorySql = `
   SELECT
-    medicine_id,
-    medicine_name,
-    batch_number,
-    expiry_date,
-    quantity,
-    category
-  FROM Medicines
-  WHERE donor_id = ?
-  ORDER BY medicine_id DESC;
+    m.medicine_id,
+    m.medicine_name,
+    m.batch_number,
+    m.expiry_date,
+    m.quantity,
+    mi.category
+  FROM Medicines m
+  JOIN Medicines_Info mi ON m.medicine_name = mi.medicine_name
+  WHERE m.donor_id = ?
+  ORDER BY m.medicine_id DESC;
   `;
 
   db.query(summarySql, [donor_id], (err, summaryResult) => {

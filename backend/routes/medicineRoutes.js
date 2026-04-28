@@ -8,23 +8,31 @@ router.post("/add", verifyToken, allowRoles("Donor"), (req, res) => {
     const donor_id = req.user.user_id;
     const { medicine_name, batch_number, expiry_date, quantity, category } = req.body;
 
-    const sql = `
+    const infoSql = `INSERT IGNORE INTO Medicines_Info (medicine_name, category) VALUES (?, ?)`;
+    const medSql = `
     INSERT INTO Medicines 
-    (donor_id, medicine_name, batch_number, expiry_date, quantity, category, status)
-    VALUES (?,?,?,?,?,?, 'Available')
+    (donor_id, medicine_name, batch_number, expiry_date, quantity, status)
+    VALUES (?,?,?,?,?, 'Available')
     `;
 
-    db.query(sql, [donor_id, medicine_name, batch_number, expiry_date, quantity, category], (err, result) => {
+    db.query(infoSql, [medicine_name, category], (err) => {
         if (err) {
-            console.error("❌ Add Medicine Error:", err);
+            console.error("❌ Add Medicine_Info Error:", err);
             return res.status(500).json({ message: "Database Error", error: err.message });
         }
-        res.status(201).json({ message: "Medicine Added Successfully", medicine_id: result.insertId });
+        
+        db.query(medSql, [donor_id, medicine_name, batch_number, expiry_date, quantity], (err, result) => {
+            if (err) {
+                console.error("❌ Add Medicine Error:", err);
+                return res.status(500).json({ message: "Database Error", error: err.message });
+            }
+            res.status(201).json({ message: "Medicine Added Successfully", medicine_id: result.insertId });
+        });
     });
 });
 
 router.get("/available", (req, res) => {
-    db.query("SELECT * FROM Medicines WHERE status='Available' AND quantity > 0", (err, result) => {
+    db.query("SELECT m.*, mi.category FROM Medicines m JOIN Medicines_Info mi ON m.medicine_name = mi.medicine_name WHERE m.status='Available' AND m.quantity > 0", (err, result) => {
         if (err) {
             console.error("❌ Fetch Available Error:", err);
             return res.status(500).json({ message: "Database Error", error: err.message });
@@ -98,7 +106,7 @@ router.get("/my-medicines", verifyToken, allowRoles("Donor"), (req,res)=>{
 
   const donor_id = req.user.user_id;
 
-  db.query("SELECT * FROM Medicines WHERE donor_id=? AND quantity > 0", [donor_id], (err,result)=>{
+  db.query("SELECT m.*, mi.category FROM Medicines m JOIN Medicines_Info mi ON m.medicine_name = mi.medicine_name WHERE m.donor_id=? AND m.quantity > 0", [donor_id], (err,result)=>{
     if(err) return res.status(500).send(err.message);
     res.json(result);
   });
@@ -114,10 +122,11 @@ router.get("/all-available", verifyToken, (req,res)=>{
       m.batch_number,
       m.expiry_date,
       m.quantity,
-      m.category,
+      mi.category,
       u.name AS donor_name,
       u.city
   FROM Medicines m
+  JOIN Medicines_Info mi ON m.medicine_name = mi.medicine_name
   JOIN Users u ON m.donor_id = u.user_id
   WHERE m.status='Available' AND m.quantity > 0
   ORDER BY m.medicine_name, m.expiry_date ASC
