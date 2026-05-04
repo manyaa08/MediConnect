@@ -32,15 +32,35 @@ router.get("/ngo", verifyToken, allowRoles("NGO"), (req,res)=>{
   ORDER BY t.transfer_date DESC
   `;
 
+  // 🔴 Near-expiry received medicines count
+  const nearExpiryReceivedQuery = `
+  SELECT 
+    COUNT(DISTINCT t.transfer_id) AS ngo_near_expiry_count,
+    COALESCE(SUM(t.quantity_transferred), 0) AS ngo_near_expiry_units
+  FROM Transfers t
+  WHERE t.ngo_id = ?
+    AND DATEDIFF(t.expiry_date, CURRENT_DATE()) BETWEEN 0 AND 7
+  `;
+
   db.query(requestsQuery,[ngo_id],(err,requests)=>{
     if(err) return res.status(500).send(err.message);
 
     db.query(receivedQuery,[ngo_id],(err,received)=>{
       if(err) return res.status(500).send(err.message);
 
-      res.json({
-        requests,
-        received
+      // Get near-expiry count
+      db.query(nearExpiryReceivedQuery,[ngo_id],(err,nearExpiryResult)=>{
+        if(err) return res.status(500).send(err.message);
+
+        const nearExpiryData = nearExpiryResult && nearExpiryResult.length > 0 
+          ? nearExpiryResult[0] 
+          : { ngo_near_expiry_count: 0, ngo_near_expiry_units: 0 };
+
+        res.json({
+          requests,
+          received,
+          near_expiry_summary: nearExpiryData
+        });
       });
     });
   });

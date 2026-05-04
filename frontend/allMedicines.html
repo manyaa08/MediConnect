@@ -21,6 +21,35 @@
         </div>
     </div>
 
+    <!-- Search and Filters -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Search medicine or donor...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select id="expiryFilter" class="form-select">
+                <option value="All">All Expiry Status</option>
+                <option value="available">Available</option>
+                <option value="near_expiry">Near Expiry</option>
+                <option value="expired">Expired</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select id="categoryFilter" class="form-select">
+                <option value="All">All Categories</option>
+                <!-- Loaded via JS -->
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select id="cityFilter" class="form-select">
+                <option value="All">All Cities</option>
+                <!-- Loaded via JS -->
+            </select>
+        </div>
+    </div>
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">

@@ -75,26 +75,11 @@ router.post("/claim",verifyToken, allowRoles("NGO"), (req,res)=>{
                         return db.rollback(() => res.status(500).json({ message: "Failed to log transfer", error: err.message }));
                     }
 
-                    const updateMedicine = `
-                    UPDATE Medicines SET status='Claimed', quantity=0
-                    WHERE medicine_id=? AND status='Available'
-                    `;
-
-                    db.query(updateMedicine, [medicine_id], (err, updateRes) => {
+                    db.commit((err) => {
                         if (err) {
-                            return db.rollback(() => res.status(500).json({ message: "Failed to update medicine status", error: err.message }));
+                            return db.rollback(() => res.status(500).json({ message: "Commit error", error: err.message }));
                         }
-
-                        if (updateRes.affectedRows === 0) {
-                            return db.rollback(() => res.status(400).json({ message: "Medicine already claimed or unavailable" }));
-                        }
-
-                        db.commit((err) => {
-                            if (err) {
-                                return db.rollback(() => res.status(500).json({ message: "Commit error", error: err.message }));
-                            }
-                            res.json({ message: "Medicine Claimed Successfully (Transaction Safe)" });
-                        });
+                        res.json({ message: "Medicine Claimed Successfully" });
                     });
                 });
             });
@@ -128,13 +113,23 @@ router.get("/all-available", verifyToken, (req,res)=>{
   FROM Medicines m
   JOIN Medicines_Info mi ON m.medicine_name = mi.medicine_name
   JOIN Users u ON m.donor_id = u.user_id
-  WHERE m.status='Available' AND m.quantity > 0
+  WHERE m.quantity > 0
   ORDER BY m.medicine_name, m.expiry_date ASC
   `;
 
   db.query(sql,(err,result)=>{
     if(err) return res.status(500).send(err.message);
-    res.json(result);
+
+    const { classifyExpiry } = require('../utils/expiryLogic');
+    
+    const inventoryWithExpiry = result.map(item => {
+      return {
+        ...item,
+        expiry_status: classifyExpiry(item.expiry_date)
+      };
+    });
+
+    res.json(inventoryWithExpiry);
   });
 
 });

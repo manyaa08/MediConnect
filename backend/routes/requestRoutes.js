@@ -9,18 +9,27 @@ router.post("/create", verifyToken, allowRoles("NGO"), (req, res) => {
     const { medicine_name, required_quantity, urgency } = req.body;
     const ngo_id = req.user.user_id;
 
-    const sql = `
-    INSERT INTO Requests 
-    (ngo_id, medicine_name, required_quantity, remaining_quantity, urgency)
-    VALUES (?,?,?,?,?)
-    `;
-
-    db.query(sql, [ngo_id, medicine_name, required_quantity, required_quantity, urgency], (err) => {
+    const infoSql = `INSERT IGNORE INTO Medicines_Info (medicine_name, category) VALUES (?, 'Other')`;
+    
+    db.query(infoSql, [medicine_name], (err) => {
         if (err) {
-            console.error("❌ Create Request Error:", err);
+            console.error("❌ Add Medicine_Info Error:", err);
             return res.status(500).json({ message: "Database Error", error: err.message });
         }
-        res.status(201).json({ message: "Request Created Successfully" });
+
+        const sql = `
+        INSERT INTO Requests 
+        (ngo_id, medicine_name, required_quantity, remaining_quantity, urgency)
+        VALUES (?,?,?,?,?)
+        `;
+
+        db.query(sql, [ngo_id, medicine_name, required_quantity, required_quantity, urgency], (err) => {
+            if (err) {
+                console.error("❌ Create Request Error:", err);
+                return res.status(500).json({ message: "Database Error", error: err.message });
+            }
+            res.status(201).json({ message: "Request Created Successfully" });
+        });
     });
 });
 
@@ -108,67 +117,34 @@ router.post("/fulfill", verifyToken, allowRoles("Donor"), (req,res)=>{
           let remaining = quantity;
           let index = 0;
 
-          function nextBatch(){
-
-            if(remaining <= 0){
-              return finalize();
+          function processNextBatch() {
+            if (remaining <= 0) {
+              return res.json({ message: "Request fulfilled successfully (FEFO)" });
             }
 
-            if(index >= medicines.length){
+            if (index >= medicines.length) {
               return res.status(400).send("Not enough stock across batches");
             }
 
             const batch = medicines[index++];
             const deduct = Math.min(batch.quantity, remaining);
 
+            // Use the Advanced SQL Stored Procedure!
             db.query(
-              "INSERT INTO Transfers (medicine_id, ngo_id, quantity_transferred, expiry_date) VALUES (?,?,?,?)",
-              [batch.medicine_id, request.ngo_id, deduct, batch.expiry_date],
-              (err)=>{
-                if(err) return res.status(500).send(err.message);
-
-                db.query(
-                  "UPDATE Medicines SET quantity=quantity-? WHERE medicine_id=?",
-                  [deduct, batch.medicine_id],
-                  (err)=>{
-                    if(err) return res.status(500).send(err.message);
-
-                    db.query(
-                      "UPDATE Medicines SET status='Unavailable' WHERE medicine_id=? AND quantity<=0",
-                      [batch.medicine_id],
-                      (err)=>{
-                        if(err) return res.status(500).send(err.message);
-
-                        remaining -= deduct;
-                        nextBatch(); // SAFE recursion
-                      }
-                    );
-                  }
-                );
+              "CALL fulfill_request(?, ?, ?)",
+              [request_id, batch.medicine_id, deduct],
+              (err) => {
+                if (err) {
+                  console.error("Fulfill Request SP Error:", err);
+                  return res.status(500).send("Database error during fulfillment");
+                }
+                remaining -= deduct;
+                processNextBatch(); // Move to next batch if needed
               }
             );
           }
 
-          function finalize(){
-
-            db.query(
-              "UPDATE Requests SET remaining_quantity = remaining_quantity - ? WHERE request_id=?",
-              [quantity, request_id],
-              (err)=>{
-                if(err) return res.status(500).send(err.message);
-
-                  db.query(
-                    "UPDATE Requests SET status='Fulfilled' WHERE remaining_quantity <= 0 AND request_id=?",
-                    [request_id],
-                    () => {
-                      res.json({ message: "Request fulfilled successfully (FEFO)" });
-                    }
-                  );
-              }
-            );
-          }
-
-          nextBatch();
+          processNextBatch();
         }
       );
     }

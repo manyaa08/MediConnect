@@ -25,6 +25,23 @@
             </div>
         </div>
 
+        <!-- Search and Filters for Matching Needs -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="searchMatch" class="form-control border-start-0 ps-0" placeholder="Search by medicine, NGO name or city...">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select id="compatibilityFilter" class="form-select">
+                    <option value="All">All Compatibility</option>
+                    <option value="Full">Can Fully Fulfill</option>
+                    <option value="Partial">Can Partially Fulfill</option>
+                </select>
+            </div>
+        </div>
+
         <div class="card border-0 p-1">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
