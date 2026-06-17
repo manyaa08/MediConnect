@@ -51,7 +51,7 @@ exports.getAdminStats = async (req, res) => {
     try {
         // Core KPIs
         const totalMedicinesQuery = "SELECT COALESCE(SUM(quantity), 0)::INT AS count FROM Medicines";
-        const activeDonationsQuery = "SELECT COALESCE(SUM(quantity), 0)::INT AS count FROM Medicines WHERE status = 'Available' AND quantity > 0";
+        const activeDonationsQuery = "SELECT COALESCE(SUM(quantity), 0)::INT AS count FROM Medicines WHERE status IN ('Available', 'Near Expiry') AND quantity > 0";
         const activeRequestsQuery = "SELECT COUNT(*)::INT AS count FROM Requests WHERE remaining_quantity > 0";
         const completedTransfersQuery = "SELECT COUNT(*)::INT AS count FROM Transfers";
         const expiringMedicinesQuery = "SELECT COALESCE(SUM(quantity), 0)::INT AS count FROM Medicines WHERE (expiry_date - CURRENT_DATE) BETWEEN 0 AND 30 AND quantity > 0";

@@ -70,7 +70,7 @@ router.get("/matching-needs", verifyToken, allowRoles("Donor"), async (req, res)
     JOIN Users u ON r.ngo_id = u.user_id
     JOIN Users d ON m.donor_id = d.user_id
     WHERE m.donor_id = $1
-      AND m.status = 'Available'
+      AND m.status IN ('Available', 'Near Expiry')
       AND m.quantity > 0
       AND d.city = u.city
       AND r.remaining_quantity > 0

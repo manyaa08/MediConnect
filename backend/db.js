@@ -2,7 +2,12 @@ const { Pool } = require("pg");
 require("dotenv").config();
 
 const poolConfig = process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL }
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    }
   : {
       host: process.env.PGHOST || process.env.DB_HOST || "localhost",
       user: process.env.PGUSER || process.env.DB_USER || "postgres",

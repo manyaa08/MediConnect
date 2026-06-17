@@ -93,7 +93,7 @@ exports.getDonorDashboard = async (req, res) => {
         const availableRes = await db.query(
             `SELECT COALESCE(SUM(quantity), 0)::INT as current_available_units 
              FROM Medicines 
-             WHERE donor_id = $1 AND status = 'Available' AND quantity > 0`, 
+             WHERE donor_id = $1 AND status IN ('Available', 'Near Expiry') AND quantity > 0`, 
             [donor_id]
         );
 

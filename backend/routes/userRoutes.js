@@ -65,7 +65,7 @@ router.post("/login", async (req, res) => {
         console.log("Signing JWT...");
         const token = jwt.sign(
             { user_id: user.user_id, role: user.role },
-            "secretkey",
+            process.env.JWT_SECRET || "secretkey",
             { expiresIn: "1h" }
         );
 
