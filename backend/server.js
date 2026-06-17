@@ -30,3 +30,6 @@ app.use("/dashboard", dashboardRoutes);
 
 const transferRoutes = require("./routes/transferRoutes");
 app.use("/transfers", transferRoutes);
+
+const adminRoutes = require("./routes/adminRoutes");
+app.use("/admin", adminRoutes);

@@ -4,77 +4,73 @@ const db = require("../db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-router.post("/register", async (req,res)=>{
-    console.log("✅ HIT /register route");  // 👈 ADD THIS
+// User registration
+router.post("/register", async (req, res) => {
+    console.log("✅ HIT /register route");
+    const { name, email, password, role, city } = req.body;
 
-    const {name,email,password,role,city} = req.body;
-
-    if(!name || !email || !password || !role || !city){
+    if (!name || !email || !password || !role || !city) {
         return res.status(400).json({ message: "All fields are required" });
     }
 
-    console.log("Hashing password...");
-    const hashedPassword = await bcrypt.hash(password,10);
+    try {
+        console.log("Hashing password...");
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-    console.log("🚀 BEFORE DB QUERY"); // 👈 ADD THIS
+        console.log("🚀 BEFORE DB QUERY");
+        const sql = `
+        INSERT INTO Users (name, email, password_hash, role, city)
+        VALUES ($1, $2, $3, $4, $5)
+        `;
 
-    const sql = `
-    INSERT INTO users (name,email,password_hash,role,city)
-    VALUES (?,?,?,?,?)
-    `;
-
-    db.query(sql,[name,email,hashedPassword,role,city],(err,result)=>{
-        console.log("🔥 INSIDE DB CALLBACK"); // 👈 ADD THIS
-
-        if(err) {
-            console.error("DB Error:", err);
-            return res.status(500).json({ message: "Registration failed" });
-        }
-
+        await db.query(sql, [name, email, hashedPassword, role, city]);
+        console.log("🔥 DB INSERT SUCCESS");
         return res.status(201).json({ message: "User Registered Successfully" });
-    });
+    } catch (err) {
+        console.error("❌ Registration Error:", err);
+        return res.status(500).json({ message: "Registration failed", error: err.message });
+    }
 });
 
-
-router.post("/login",(req,res)=>{
+// User login
+router.post("/login", async (req, res) => {
     console.log("✅ HIT /login route", req.body);
-    const {email,password} = req.body;
+    const { email, password } = req.body;
 
-    if(!email || !password){
+    if (!email || !password) {
         console.log("Missing fields");
         return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const sql = "SELECT * FROM users WHERE email=?";
-    console.log("🚀 BEFORE DB QUERY");
+    try {
+        const sql = "SELECT * FROM Users WHERE email = $1";
+        console.log("🚀 BEFORE DB QUERY");
+        const result = await db.query(sql, [email]);
+        console.log("🔥 DB SELECT SUCCESS");
 
-    db.query(sql,[email], async (err,result)=>{
-        console.log("🔥 INSIDE DB CALLBACK");
-        if(err) {
-            console.error("DB Error:", err);
-            return res.status(500).json({ message: "Login failed" });
+        console.log("DB Result length:", result.rows.length);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
         }
-        
-        console.log("DB Result length:", result.length);
-        if(result.length==0) return res.status(404).json({ message: "User not found" });
 
-        const user = result[0];
+        const user = result.rows[0];
         console.log("User found, comparing password...");
-
-        const match = await bcrypt.compare(password,user.password_hash);
+        const match = await bcrypt.compare(password, user.password_hash);
         console.log("Password match result:", match);
 
-        if(!match) return res.status(401).json({ message: "Invalid Password" });
+        if (!match) {
+            return res.status(401).json({ message: "Invalid Password" });
+        }
 
         console.log("Signing JWT...");
         const token = jwt.sign(
-            {user_id:user.user_id, role:user.role},
+            { user_id: user.user_id, role: user.role },
             "secretkey",
-            {expiresIn:"1h"}
+            { expiresIn: "1h" }
         );
 
         console.log("Sending successful login response!");
-        res.json({
+        return res.json({
             message: "Login Success",
             token,
             user: {
@@ -83,7 +79,10 @@ router.post("/login",(req,res)=>{
                 role: user.role
             }
         });
-    });
+    } catch (err) {
+        console.error("❌ Login Error:", err);
+        return res.status(500).json({ message: "Login failed", error: err.message });
+    }
 });
 
 module.exports = router;

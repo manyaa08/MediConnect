@@ -41,28 +41,22 @@ function randomDate(start, end) {
 
 let sql = `
 -- ==============================================================================
--- MEDICONNECT - DATABASE INITIALIZATION & SEED SCRIPT
+-- MEDICONNECT - DATABASE INITIALIZATION & SEED SCRIPT (PostgreSQL Version)
 -- ==============================================================================
-CREATE DATABASE IF NOT EXISTS mediconnect;
-USE mediconnect;
 
-SET FOREIGN_KEY_CHECKS = 0;
-
-DROP TABLE IF EXISTS Transfers;
-DROP TABLE IF EXISTS Requests;
-DROP TABLE IF EXISTS Medicines;
-DROP TABLE IF EXISTS Medicines_Info;
-DROP TABLE IF EXISTS Users;
-DROP TABLE IF EXISTS QueryLogs;
-
-SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE IF EXISTS Transfers CASCADE;
+DROP TABLE IF EXISTS Requests CASCADE;
+DROP TABLE IF EXISTS Medicines CASCADE;
+DROP TABLE IF EXISTS Medicines_Info CASCADE;
+DROP TABLE IF EXISTS Users CASCADE;
+DROP TABLE IF EXISTS QueryLogs CASCADE;
 
 CREATE TABLE Users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('Donor', 'NGO') NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('Donor', 'NGO')),
     city VARCHAR(100)
 );
 
@@ -72,31 +66,31 @@ CREATE TABLE Medicines_Info (
 );
 
 CREATE TABLE Medicines (
-    medicine_id INT AUTO_INCREMENT PRIMARY KEY,
+    medicine_id SERIAL PRIMARY KEY,
     medicine_name VARCHAR(255) NOT NULL,
     batch_number VARCHAR(100),
     expiry_date DATE NOT NULL,
     quantity INT NOT NULL,
     donor_id INT NOT NULL,
-    status ENUM('Available', 'Unavailable', 'Claimed', 'Expired') DEFAULT 'Available',
+    status VARCHAR(50) DEFAULT 'Available' CHECK (status IN ('Available', 'Unavailable', 'Claimed', 'Expired')),
     CONSTRAINT fk_medicine_info FOREIGN KEY (medicine_name) REFERENCES Medicines_Info(medicine_name) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_medicine_donor FOREIGN KEY (donor_id) REFERENCES Users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE Requests (
-    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    request_id SERIAL PRIMARY KEY,
     ngo_id INT NOT NULL,
     medicine_name VARCHAR(255) NOT NULL,
     required_quantity INT NOT NULL,
     remaining_quantity INT NOT NULL,
     urgency VARCHAR(50) DEFAULT 'Normal',
-    status ENUM('Pending', 'Partially Fulfilled', 'Completed', 'Fulfilled') DEFAULT 'Pending',
+    status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Partially Fulfilled', 'Completed', 'Fulfilled')),
     CONSTRAINT fk_request_ngo FOREIGN KEY (ngo_id) REFERENCES Users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_request_med_info FOREIGN KEY (medicine_name) REFERENCES Medicines_Info(medicine_name) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE Transfers (
-    transfer_id INT AUTO_INCREMENT PRIMARY KEY,
+    transfer_id SERIAL PRIMARY KEY,
     medicine_id INT NOT NULL,
     ngo_id INT NOT NULL,
     request_id INT NULL,
@@ -109,197 +103,189 @@ CREATE TABLE Transfers (
 );
 
 CREATE TABLE QueryLogs (
-    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    log_id SERIAL PRIMARY KEY,
     action VARCHAR(100) NOT NULL,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-DELIMITER $$
-DROP TRIGGER IF EXISTS After_Transfer_Insert$$
-CREATE TRIGGER After_Transfer_Insert
-AFTER INSERT ON Transfers
-FOR EACH ROW
+-- ==============================================================================
+-- ADVANCED SQL CONCEPTS: FUNCTIONS, PROCEDURES, TRIGGERS
+-- ==============================================================================
+
+-- 1. FUNCTIONS
+CREATE OR REPLACE FUNCTION classify_expiry(exp_date DATE) RETURNS VARCHAR(20) AS $$
+DECLARE
+    days_left INT;
+BEGIN
+    days_left := exp_date - CURRENT_DATE;
+    IF days_left < 0 THEN 
+        RETURN 'Expired';
+    ELSIF days_left < 7 THEN 
+        RETURN 'Near Expiry';
+    ELSE 
+        RETURN 'Available';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- 2. TRIGGERS
+
+-- After Transfer Insert
+CREATE OR REPLACE FUNCTION after_transfer_insert_fn() RETURNS TRIGGER AS $$
 BEGIN
     UPDATE Medicines 
-    SET status = IF(quantity - NEW.quantity_transferred <= 0, 'Unavailable', 'Available'),
+    SET status = CASE WHEN quantity - NEW.quantity_transferred <= 0 THEN 'Unavailable' ELSE 'Available' END,
         quantity = quantity - NEW.quantity_transferred
     WHERE medicine_id = NEW.medicine_id;
 
     IF NEW.request_id IS NOT NULL THEN
         UPDATE Requests 
-        SET status = IF(remaining_quantity - NEW.quantity_transferred <= 0, 'Completed', 'Partially Fulfilled'),
+        SET status = CASE WHEN remaining_quantity - NEW.quantity_transferred <= 0 THEN 'Completed' ELSE 'Partially Fulfilled' END,
             remaining_quantity = remaining_quantity - NEW.quantity_transferred
         WHERE request_id = NEW.request_id;
     END IF;
 
     INSERT INTO QueryLogs (action, description)
-    VALUES ('TRANSFER_PROCESSED', CONCAT('Transferred ', NEW.quantity_transferred, ' units of Medicine ID ', NEW.medicine_id, ' to NGO ID ', NEW.ngo_id));
-END$$
-DELIMITER ;
+    VALUES ('TRANSFER_PROCESSED', 'Transferred ' || NEW.quantity_transferred || ' units of Medicine ID ' || NEW.medicine_id || ' to NGO ID ' || NEW.ngo_id);
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- ==============================================================================
--- ADVANCED SQL CONCEPTS: FUNCTIONS, PROCEDURES, CURSORS, TRIGGERS
--- ==============================================================================
+CREATE TRIGGER After_Transfer_Insert
+AFTER INSERT ON Transfers
+FOR EACH ROW EXECUTE FUNCTION after_transfer_insert_fn();
 
-DELIMITER $$
-
--- 1. FUNCTIONS
-DROP FUNCTION IF EXISTS classify_expiry$$
-CREATE FUNCTION classify_expiry(exp_date DATE) RETURNS VARCHAR(20) DETERMINISTIC
+-- Before Medicine Insert
+CREATE OR REPLACE FUNCTION before_medicine_insert_fn() RETURNS TRIGGER AS $$
 BEGIN
-    DECLARE days_left INT;
-    SET days_left = DATEDIFF(exp_date, CURRENT_DATE());
-    IF days_left < 0 THEN RETURN 'Expired';
-    ELSEIF days_left < 7 THEN RETURN 'Near Expiry';
-    ELSE RETURN 'Available';
+    IF NEW.expiry_date < CURRENT_DATE THEN
+        NEW.status := 'Expired';
     END IF;
-END$$
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- 2. TRIGGERS
-DROP TRIGGER IF EXISTS Before_Medicine_Insert$$
 CREATE TRIGGER Before_Medicine_Insert
 BEFORE INSERT ON Medicines
-FOR EACH ROW
-BEGIN
-    IF NEW.expiry_date < CURRENT_DATE() THEN
-        SET NEW.status = 'Expired';
-    END IF;
-    -- Note: IF not expired, we leave it as default or use whatever is provided
-END$$
+FOR EACH ROW EXECUTE FUNCTION before_medicine_insert_fn();
 
-DROP TRIGGER IF EXISTS Before_Medicine_Update$$
-CREATE TRIGGER Before_Medicine_Update
-BEFORE UPDATE ON Medicines
-FOR EACH ROW
+-- Before Medicine Update
+CREATE OR REPLACE FUNCTION before_medicine_update_fn() RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.expiry_date != OLD.expiry_date THEN
-        IF NEW.expiry_date < CURRENT_DATE() THEN
-            SET NEW.status = 'Expired';
+        IF NEW.expiry_date < CURRENT_DATE THEN
+            NEW.status := 'Expired';
         ELSE
-            SET NEW.status = 'Available';
+            NEW.status := 'Available';
         END IF;
     END IF;
-END$$
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS Before_Transfer_Insert$$
-CREATE TRIGGER Before_Transfer_Insert
-BEFORE INSERT ON Transfers
-FOR EACH ROW
+CREATE TRIGGER Before_Medicine_Update
+BEFORE UPDATE ON Medicines
+FOR EACH ROW EXECUTE FUNCTION before_medicine_update_fn();
+
+-- Before Transfer Insert
+CREATE OR REPLACE FUNCTION before_transfer_insert_fn() RETURNS TRIGGER AS $$
+DECLARE
+    med_qty INT;
+    req_qty INT;
 BEGIN
-    DECLARE med_qty INT;
-    DECLARE req_qty INT;
-    
     SELECT quantity INTO med_qty FROM Medicines WHERE medicine_id = NEW.medicine_id;
-    IF med_qty IS NULL THEN SET med_qty = 0; END IF;
+    IF med_qty IS NULL THEN med_qty := 0; END IF;
 
     IF NEW.quantity_transferred > med_qty THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Transfer quantity exceeds available stock.';
+        RAISE EXCEPTION 'Transfer quantity exceeds available stock.';
     END IF;
     
     IF NEW.request_id IS NOT NULL THEN
         SELECT remaining_quantity INTO req_qty FROM Requests WHERE request_id = NEW.request_id;
-        IF req_qty IS NULL THEN SET req_qty = 0; END IF;
+        IF req_qty IS NULL THEN req_qty := 0; END IF;
         
         IF NEW.quantity_transferred > req_qty THEN
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Transfer quantity exceeds requested quantity.';
+            RAISE EXCEPTION 'Transfer quantity exceeds requested quantity.';
         END IF;
     END IF;
-END$$
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- 3. STORED PROCEDURES (WITH CURSORS & COMPLEX LOGIC)
+CREATE TRIGGER Before_Transfer_Insert
+BEFORE INSERT ON Transfers
+FOR EACH ROW EXECUTE FUNCTION before_transfer_insert_fn();
 
--- Expiry Scanner (Cursor)
-DROP PROCEDURE IF EXISTS Expiry_Scanner$$
-CREATE PROCEDURE Expiry_Scanner()
+
+-- 3. STORED PROCEDURES
+
+-- Expiry Scanner
+CREATE OR REPLACE PROCEDURE Expiry_Scanner()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    m_record RECORD;
+    new_status VARCHAR(20);
 BEGIN
-    DECLARE done INT DEFAULT FALSE;
-    DECLARE m_id INT;
-    DECLARE m_exp DATE;
-    DECLARE new_status VARCHAR(20);
-    
-    DECLARE med_cursor CURSOR FOR SELECT medicine_id, expiry_date FROM Medicines;
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    OPEN med_cursor;
-    
-    scan_loop: LOOP
-        FETCH med_cursor INTO m_id, m_exp;
-        IF done THEN
-            LEAVE scan_loop;
-        END IF;
-        
-        SET new_status = classify_expiry(m_exp);
-        UPDATE Medicines SET status = new_status WHERE medicine_id = m_id;
+    FOR m_record IN SELECT medicine_id, expiry_date FROM Medicines LOOP
+        new_status := classify_expiry(m_record.expiry_date);
+        UPDATE Medicines SET status = new_status WHERE medicine_id = m_record.medicine_id;
     END LOOP;
-    
-    CLOSE med_cursor;
-END$$
+END;
+$$;
 
--- Dashboard Aggregation (Cursor)
-DROP PROCEDURE IF EXISTS get_donor_dashboard$$
-CREATE PROCEDURE get_donor_dashboard(IN p_donor_id INT)
+-- Dashboard Aggregation (Changed to Function returning table for easy Node consumption)
+CREATE OR REPLACE FUNCTION get_donor_dashboard(p_donor_id INT)
+RETURNS TABLE(total_meds INT, total_avail INT, total_exp INT, total_near INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    m_status VARCHAR(20);
 BEGIN
-    DECLARE done INT DEFAULT FALSE;
-    DECLARE m_status VARCHAR(20);
-    DECLARE total_meds INT DEFAULT 0;
-    DECLARE total_avail INT DEFAULT 0;
-    DECLARE total_exp INT DEFAULT 0;
-    DECLARE total_near INT DEFAULT 0;
+    total_meds := 0;
+    total_avail := 0;
+    total_exp := 0;
+    total_near := 0;
     
-    DECLARE stat_cursor CURSOR FOR 
-        SELECT classify_expiry(expiry_date) 
-        FROM Medicines 
-        WHERE donor_id = p_donor_id AND quantity > 0;
-        
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    OPEN stat_cursor;
-    
-    stat_loop: LOOP
-        FETCH stat_cursor INTO m_status;
-        IF done THEN
-            LEAVE stat_loop;
-        END IF;
-        
-        SET total_meds = total_meds + 1;
-        IF m_status = 'Available' THEN SET total_avail = total_avail + 1;
-        ELSEIF m_status = 'Expired' THEN SET total_exp = total_exp + 1;
-        ELSEIF m_status = 'Near Expiry' THEN SET total_near = total_near + 1;
+    FOR m_status IN SELECT classify_expiry(expiry_date) FROM Medicines WHERE donor_id = p_donor_id AND quantity > 0 LOOP
+        total_meds := total_meds + 1;
+        IF m_status = 'Available' THEN 
+            total_avail := total_avail + 1;
+        ELSIF m_status = 'Expired' THEN 
+            total_exp := total_exp + 1;
+        ELSIF m_status = 'Near Expiry' THEN 
+            total_near := total_near + 1;
         END IF;
     END LOOP;
     
-    CLOSE stat_cursor;
-    
-    SELECT total_meds, total_avail, total_exp, total_near;
-END$$
+    RETURN NEXT;
+END;
+$$;
 
--- Fulfill Request (Transaction)
-DROP PROCEDURE IF EXISTS fulfill_request$$
-CREATE PROCEDURE fulfill_request(IN p_request_id INT, IN p_medicine_id INT, IN p_qty INT)
+-- Fulfill Request
+CREATE OR REPLACE PROCEDURE fulfill_request(p_request_id INT, p_medicine_id INT, p_qty INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_ngo_id INT;
+    v_exp_date DATE;
 BEGIN
-    DECLARE v_ngo_id INT;
-    DECLARE v_exp_date DATE;
-    
-    -- Start Transaction
-    START TRANSACTION;
-    
-    -- Get Request NGO and Medicine Expiry
     SELECT ngo_id INTO v_ngo_id FROM Requests WHERE request_id = p_request_id;
     SELECT expiry_date INTO v_exp_date FROM Medicines WHERE medicine_id = p_medicine_id;
     
-    -- Insert Transfer (Triggers will handle decrementing Medicines and Requests)
     INSERT INTO Transfers (medicine_id, ngo_id, request_id, quantity_transferred, transfer_date, expiry_date)
-    VALUES (p_medicine_id, v_ngo_id, p_request_id, p_qty, NOW(), v_exp_date);
-    
-    COMMIT;
-END$$
-
-DELIMITER ;
+    VALUES (p_medicine_id, v_ngo_id, p_request_id, p_qty, CURRENT_TIMESTAMP, v_exp_date);
+END;
+$$;
 
 -- ==============================================================================
 -- INSERT DUMMY DATA
 -- ==============================================================================
+
 
 `;
 

@@ -2,3 +2,12 @@ node_modules/
 backend/node_modules/
 .env
 backend/.env
+backend/.env.*
+backend/scratch/
+frontend-legacy/
+MediConnect_DBMS_Report.html
+.vscode/
+.idea/
+*.log
+frontend/dist/
+frontend/node_modules/
