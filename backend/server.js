@@ -6,20 +6,26 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://medi-connect-vercel.app",
-  "https://medi-connect-abftpueep-codemewith4-9288s-projects.vercel.app"
+  "https://mediconnect24.vercel.app",
+  "https://mediconnect-git-main-codemewith4-9288s-projects.vercel.app",
+  "https://mediconnect-2eqfh5vhd-codemewith4-9288s-projects.vercel.app"
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
+      console.log("Request Origin:", origin);
+
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+        return callback(null, true);
       }
+
+      console.log("BLOCKED ORIGIN:", origin);
+      return callback(new Error("Not allowed by CORS"));
     },
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 app.use(express.json());
